@@ -37,7 +37,7 @@ function isUrlAllowed (urlString: string): boolean {
     // IPv4
     if (ipType === 4) {
       const octets = hostname.split('.').map(Number)
-      if (octets.length === 4) {
+      if (octets.length === 4 && octets.every(o => !isNaN(o) && o >= 0 && o <= 255)) {
         const [o1, o2] = octets
         // 127.0.0.0/8 loopback
         if (o1 === 127) return false
@@ -47,6 +47,12 @@ function isUrlAllowed (urlString: string): boolean {
         if (o1 === 172 && o2 >= 16 && o2 <= 31) return false
         // 192.168.0.0/16 private
         if (o1 === 192 && o2 === 168) return false
+        // 169.254.0.0/16 link-local
+        if (o1 === 169 && o2 === 254) return false
+        // 224.0.0.0/4 multicast
+        if (o1 >= 224 && o1 <= 239) return false
+      } else {
+        return false
       }
     }
     // Treat all IPv6 literals as disallowed to avoid local/unique scopes
@@ -67,9 +73,10 @@ export function profileImageUrlUpload () {
       if (loggedInUser) {
         try {
           if (!isUrlAllowed(url)) {
-            const user = await UserModel.findByPk(loggedInUser.data.id)
-            await user?.update({ profileImage: url })
-            logger.warn(`Blocked SSRF attempt for profile image URL "${url}"; using image link directly`)
+            logger.warn(`Blocked SSRF attempt for profile image URL "${url}"`)
+            res.status(400)
+            next(new Error('Invalid or disallowed URL for profile image'))
+            return
           } else {
             const response = await fetch(url)
             if (!response.ok || !response.body) {
