@@ -15,7 +15,8 @@ export function performRedirect () {
     const rawTo = query.to
     if (typeof rawTo !== 'string') {
       res.status(406)
-      return next(new Error('Unrecognized target URL for redirect: ' + String(rawTo)))
+      next(new Error('Unrecognized target URL for redirect: ' + String(rawTo)))
+      return
     }
     const toUrl: string = rawTo
     if (security.isRedirectAllowed(toUrl)) {
